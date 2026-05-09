@@ -160,10 +160,21 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     serverStates[server].pred = newPrediction;
 }
 
+// ⚠️ এখানে ছদ্মবেশ (Headers) অ্যাড করা হয়েছে
 async function fetchServerData(server) {
     try {
-        const res = await fetch(APIS[server] + '?t=' + Date.now());
+        const res = await fetch(APIS[server] + '?t=' + Date.now(), {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Connection': 'keep-alive'
+            }
+        });
+        
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        
         const data = await res.json();
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
@@ -186,6 +197,7 @@ async function fetchServerData(server) {
     }
 }
 
+// ৩ সেকেন্ড পর পর চেক করবে
 setInterval(() => {
     fetchServerData('30S'); 
     fetchServerData('1M');
