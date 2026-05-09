@@ -145,7 +145,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
                     internalState.martingaleActive = true;
                     if (c.sendLoss) {
                         await tgMsg(c.botToken, c.chatId, c.lossMsg);
-                        await tgSticker(c.botToken, c.chatId, c.lossSticker);
+                        awaitদাসtgSticker(c.botToken, c.chatId, c.lossSticker);
                     }
                 }
             }
@@ -160,30 +160,43 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     serverStates[server].pred = newPrediction;
 }
 
-// ⚠️ PROXY BYPASS LOGIC (IP Block এড়ানোর জন্য)
+// ⚠️ MULTIPLE PROXY FALLBACK & RATE LIMIT FIX
 async function fetchServerData(server) {
-    try {
-        // মেইন লিংক
-        const targetUrl = APIS[server] + '?t=' + Date.now();
-        // প্রক্সি লিংক (Corsproxy)
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    const targetUrl = APIS[server] + '?t=' + Date.now();
+    
+    // দুটি সেরা প্রক্সি, একটি কাজ না করলে অন্যটি করবে
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+    ];
 
-        const res = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    let data = null;
+
+    for (let proxy of proxies) {
+        try {
+            const res = await fetch(proxy, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (res.ok) {
+                data = await res.json();
+                break; // ডাটা পেয়ে গেলে লুপ থেকে বের হয়ে যাবে
             }
-        });
-        
-        if (!res.ok) throw new Error(`Proxy Error ${res.status}`);
-        
-        const data = await res.json();
-        
-        // চেক করা যে ডাটা আসলেই Wingo থেকে এসেছে কিনা
-        if (!data.data || !data.data.list || data.data.list.length === 0) {
-            throw new Error("Invalid format received from Proxy");
+        } catch (e) {
+            // সাইলেন্ট এরর, পরের প্রক্সি ট্রাই করবে
         }
+    }
 
+    if (!data || !data.data || !data.data.list) {
+        console.error(`❌ [${server}] Both Proxies Failed or Blocked.`);
+        return;
+    }
+
+    try {
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
         const actualSize = parseInt(latest.number) >= 5 ? "BIG" : "SMALL";
@@ -192,7 +205,7 @@ async function fetchServerData(server) {
         if (!state.p) {
             state.p = actualPeriod;
             state.pred = calculatePrediction(data.data.list);
-            console.log(`✅ [${server}] SUCCESS! Connected & Bypassed Block. Start Period: ${actualPeriod}`);
+            console.log(`✅ [${server}] SUCCESS! Start Period: ${actualPeriod}`);
         }
         else if (state.p !== actualPeriod) {
             let newPred = calculatePrediction(data.data.list);
@@ -201,14 +214,12 @@ async function fetchServerData(server) {
             state.p = actualPeriod;
         }
     } catch (e) {
-        console.error(`❌ API Bypass Error [${server}]:`, e.message);
+        console.error(`❌ Data Parsing Error [${server}]:`, e.message);
     }
 }
 
-// ৩ সেকেন্ড পর পর চেক করবে
-setInterval(() => {
-    fetchServerData('30S'); 
-    fetchServerData('1M');
-    fetchServerData('3M'); 
-    fetchServerData('5M');
-}, 3000);
+// ⚠️ ৩ সেকেন্ডের বদলে ১০ সেকেন্ড করা হয়েছে, যাতে আইপি ব্লক না খায়
+setInterval(() => { fetchServerData('30S'); }, 10000);
+setInterval(() => { fetchServerData('1M'); }, 12000);
+setInterval(() => { fetchServerData('3M'); }, 15000);
+setInterval(() => { fetchServerData('5M'); }, 18000);
