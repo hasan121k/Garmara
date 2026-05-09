@@ -154,6 +154,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 
             let signalText = c.signalMsg.replace(/{period}/g, nextPeriodStr).replace(/{signal}/g, newPrediction);
             await tgMsg(c.botToken, c.chatId, signalText);
+            console.log(`📤 Message Sent to Channel for [${server}]`);
         }
     }
 }
@@ -166,7 +167,10 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 const GOOGLE_PROXY = "এখানে_আপনার_গুগল_লিংক_দিন"; 
 
 async function fetchServerData(server) {
-    if (GOOGLE_PROXY === "এখানে_আপনার_গুগল_লিংক_দিন") return;
+    if (GOOGLE_PROXY === "এখানে_আপনার_গুগল_লিংক_দিন" || GOOGLE_PROXY === "") {
+        console.log(`⚠️ Google Link Missing! Please add it in server.js`);
+        return;
+    }
 
     try {
         const targetUrl = APIS[server] + '?t=' + Date.now();
@@ -175,7 +179,7 @@ async function fetchServerData(server) {
         const res = await fetch(fetchUrl);
         const data = await res.json();
         
-        if (!data || !data.data || !data.data.list) return;
+        if (!data || !data.data || !data.data.list) throw new Error("Invalid format from Google Proxy");
 
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
@@ -185,7 +189,7 @@ async function fetchServerData(server) {
         if (!state.p) {
             state.p = actualPeriod;
             state.pred = calculatePrediction(data.data.list);
-            console.log(`✅ [${server}] Init Success! Waiting for next period...`);
+            console.log(`✅ [${server}] Connected via Google! Waiting for next period...`);
         }
         else if (state.p !== actualPeriod) {
             let oldPeriod = state.p;
@@ -200,7 +204,7 @@ async function fetchServerData(server) {
             processPeriodChange(server, oldPeriod, actualSize, newPred, nextPeriodStr, oldPred);
         }
     } catch (e) {
-        // Silent error
+        console.error(`❌ Fetch Error [${server}]:`, e.message);
     }
 }
 
