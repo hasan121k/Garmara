@@ -8,13 +8,14 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/ping', (req, res) => res.send('pong'));
+app.get('/ping', (req, res) => res.send('24/7 Bot is Running OK!'));
 
 app.listen(PORT, () => {
     console.log(`✅ Web server is LIVE on port ${PORT}`);
-    console.log(`🚀 24/7 BACKGROUND ENGINE STARTED WITHOUT BROWSER!`);
+    console.log(`🚀 24/7 BACKEND BOT STARTED PERFECTLY!`);
 });
 
+// Firebase Setup
 const firebaseConfig = {
     apiKey: "AIzaSyCRDaqKIi2P5Jww0zW0Gdxm2_QXtYmHOQE",
     authDomain: "sihol-3624d.firebaseapp.com",
@@ -76,8 +77,7 @@ function isTimeAllowed(timesArray) {
 async function tgMsg(token, chat, text) {
     if(!token || !chat || !text) return;
     try { await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ chat_id: chat, text: text })
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ chat_id: chat, text: text })
     }); } catch(e) {}
 }
 
@@ -122,9 +122,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 
 async function fetchServerData(server) {
     try {
-        const res = await fetch(APIS[server] + '?t=' + Date.now(), {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' }
-        });
+        const res = await fetch(APIS[server] + '?t=' + Date.now());
         const data = await res.json();
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
@@ -143,7 +141,12 @@ async function fetchServerData(server) {
     } catch (e) { }
 }
 
+// 24/7 Engine Loop
 setInterval(() => {
     fetchServerData('30S'); fetchServerData('1M'); 
     fetchServerData('3M'); fetchServerData('5M');
 }, 3000);
+
+// ক্র্যাশ রোধ করার সুরক্ষা কবচ
+process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
+process.on('unhandledRejection', (reason, promise) => { console.error('Unhandled Rejection at:', promise, 'reason:', reason); });
