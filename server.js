@@ -103,7 +103,6 @@ async function tgSticker(token, chat, stickerId) {
     } catch (e) {}
 }
 
-// ⚠️ এখানে oldPred প্যারামিটার হিসেবে নেওয়া হয়েছে যাতে লস/উইন হিসাব এলোমেলো না হয়
 async function processPeriodChange(server, oldPeriod, actualSize, newPrediction, nextPeriodStr, oldPred) {
     console.log(`🎰 [${server}] Period ${oldPeriod} Result: ${actualSize} | Next Pred: ${newPrediction}`);
     
@@ -118,7 +117,6 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 
             let isWin = false;
 
-            // উইন/লস হিসাব করা হচ্ছে
             if (oldPred) {
                 isWin = (oldPred === actualSize);
                 if (isWin) {
@@ -146,7 +144,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
                     internalState.martingaleActive = true;
                     if (c.sendLoss) {
                         await tgMsg(c.botToken, c.chatId, c.lossMsg);
-                        await tgSticker(c.botToken, c.chatId, c.lossSticker); // ⚠️ বানান ঠিক করা হয়েছে
+                        await tgSticker(c.botToken, c.chatId, c.lossSticker); 
                     }
                 }
             }
@@ -154,7 +152,6 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
             if (!c.isActive) continue;
             if (!inTime && isWin) continue;
 
-            // নতুন সিগন্যাল পাঠানো
             let signalText = c.signalMsg.replace(/{period}/g, nextPeriodStr).replace(/{signal}/g, newPrediction);
             await tgMsg(c.botToken, c.chatId, signalText);
         }
@@ -162,10 +159,10 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 }
 
 // ==========================================
-// ⚠️ 100% GUARANTEED GOOGLE BYPASS LOGIC
+// 100% GUARANTEED GOOGLE BYPASS LOGIC
 // ==========================================
 
-// 👇 নিচে আপনার গুগলের লিংকটি দিন
+// 👇 নিচে আপনার গুগলের লিংকটি দিন (ইনভার্টেড কমা " " এর ভেতরে)
 const GOOGLE_PROXY = "এখানে_আপনার_গুগল_লিংক_দিন"; 
 
 async function fetchServerData(server) {
@@ -186,33 +183,28 @@ async function fetchServerData(server) {
         let state = serverStates[server];
 
         if (!state.p) {
-            // প্রথমবার সার্ভার চালু হলে
             state.p = actualPeriod;
             state.pred = calculatePrediction(data.data.list);
             console.log(`✅ [${server}] Init Success! Waiting for next period...`);
         }
         else if (state.p !== actualPeriod) {
-            // ⚠️ LOCK SYSTEM: সাথে সাথে পিরিয়ড লক করে দেওয়া হলো যাতে ডাবল মেসেজ না যায়
             let oldPeriod = state.p;
             let oldPred = state.pred; 
             
             let newPred = calculatePrediction(data.data.list);
             let nextPeriodStr = (BigInt(actualPeriod) + 1n).toString();
             
-            // স্টেট আপডেট করে দেওয়া হলো, যাতে পরবর্তী ফেচিং এ এখানে আর না ঢোকে
             state.p = actualPeriod;
             state.pred = newPred;
 
-            // এরপর নিশ্চিন্তে টেলিগ্রাম মেসেজ পাঠানোর প্রসেস কল করা হলো
             processPeriodChange(server, oldPeriod, actualSize, newPred, nextPeriodStr, oldPred);
         }
     } catch (e) {
-        // সাইলেন্ট এরর
+        // Silent error
     }
 }
 
-// ⚠️ সার্ভার অনুযায়ী ইন্টারভাল আলাদা করা হয়েছে, যাতে গুগল ব্লক না করে
-setInterval(() => { fetchServerData('30S'); }, 7000);   // ৭ সেকেন্ড
-setInterval(() => { fetchServerData('1M'); }, 10000);  // ১০ সেকেন্ড
-setInterval(() => { fetchServerData('3M'); }, 15000);  // ১৫ সেকেন্ড
-setInterval(() => { fetchServerData('5M'); }, 20000);  // ২০ সেকেন্ড
+setInterval(() => { fetchServerData('30S'); }, 7000);   
+setInterval(() => { fetchServerData('1M'); }, 10000);  
+setInterval(() => { fetchServerData('3M'); }, 15000);  
+setInterval(() => { fetchServerData('5M'); }, 20000);
