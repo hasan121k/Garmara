@@ -9,44 +9,60 @@
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Poppins:wght@400;600;800&display=swap');
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        
         body { background: #0b0c10; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar */
         .sidebar { width: 260px; background: #1f2833; border-right: 2px solid #45a29e; display: flex; flex-direction: column; z-index: 10;}
         .sidebar-header { padding: 15px; font-family: 'Orbitron'; color: #66fcf1; text-align: center; border-bottom: 1px solid #45a29e; font-size: 16px; font-weight: 900;}
         .channel-list { flex: 1; overflow-y: auto; padding: 10px; }
         .channel-tab { background: #0b0c10; border: 1px solid #45a29e; padding: 10px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; text-align: left; font-weight: bold; transition: 0.3s; font-size: 13px; display: flex; align-items: center; gap: 8px;}
         .channel-tab.active { background: #66fcf1; color: #0b0c10; box-shadow: 0 0 15px rgba(102, 252, 241, 0.5); }
         .add-btn { background: linear-gradient(135deg, #66fcf1, #45a29e); color: #000; margin: 10px; padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; cursor: pointer; border: none; font-size: 14px;}
+
+        /* Main Content */
         .main-content { flex: 1; padding: 20px; overflow-y: auto; background: radial-gradient(circle at top right, #1f2833, #0b0c10); }
+        
+        /* Status Header */
         .header-status { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #111; padding: 15px; border-radius: 10px; border: 2px solid #333; font-size: 14px;}
         .bot-status { font-family: 'Orbitron'; font-size: 16px; font-weight: 900; text-shadow: 0 0 10px rgba(255,255,255,0.2);}
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 11px; color: #66fcf1; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
         input, select, textarea { width: 100%; padding: 10px; background: #000; border: 1px solid #45a29e; color: #fff; border-radius: 8px; outline: none; font-size: 13px;}
         input[readonly] { background: #1a1a1a; color: #00ff41; font-weight: bold; border-color: #333; cursor: not-allowed;}
         textarea { height: 60px; resize: none; }
+        
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
         .card { background: rgba(31, 40, 51, 0.8); padding: 15px; border-radius: 10px; border: 1px dashed #45a29e; margin-bottom: 15px; position: relative;}
         .card h3 { font-family: 'Orbitron'; color: #ffd700; margin-bottom: 15px; font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
         .card.small h3 { color: #00e5ff; }
         .card.loss h3 { color: #ff0055; }
         .card.target h3 { color: #ffaa00; }
         .card.alert h3 { color: #ff55ff; }
+
+        /* Buttons */
         .btn { padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-test { background: #0088cc; color: white; margin-top: 10px; width: 100%; }
         .btn-reset { background: #ffaa00; color: #000; padding: 10px; }
         .save-btn { width: 100%; padding: 15px; background: #00ff41; color: #000; font-size: 16px; font-weight: 900; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px;}
+        
+        /* Toggle Switch */
         .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ff003c; transition: .4s; border-radius: 20px; }
         .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #00ff41; }
         input:checked + .slider:before { transform: translateX(16px); }
+
         .time-box-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
         .time-box { display: flex; flex-direction: column; gap: 5px; background: #000; padding: 8px; border-radius: 8px; border: 1px solid #333; text-align: center;}
         .time-box b { font-size: 10px; color: #aaa;}
         .time-box input { padding: 4px; font-size: 10px; text-align: center;}
+
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; }
             .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 2px solid #45a29e; display: block;}
@@ -59,12 +75,17 @@
     </style>
 </head>
 <body>
+
+    <!-- SIDEBAR -->
     <div class="sidebar">
         <div class="sidebar-header"><i class="fas fa-robot"></i> ADMIN PANEL</div>
         <div class="channel-list" id="channelList"></div>
         <button class="add-btn" id="addChannelBtn"><i class="fas fa-plus"></i> ADD NEW CHANNEL</button>
     </div>
+
+    <!-- MAIN CONTENT -->
     <div class="main-content" id="mainContent" style="display: none;">
+        
         <div class="header-status">
             <div>
                 <label style="color:#aaa;">Editing Channel:</label>
@@ -87,7 +108,7 @@
                 <div class="form-group"><label>Bot Token</label><input type="text" id="f_botToken" placeholder="7123456:AAH..."></div>
                 <div class="form-group"><label>Channel ID</label><input type="text" id="f_chatId" placeholder="-100123456789"></div>
             </div>
-            <button class="btn btn-test" id="testConnectionBtn"><i class="fab fa-telegram"></i> Check Connection</button>
+            <button class="btn btn-test" id="testConnectionBtn"><i class="fab fa-telegram"></i> Check Connection (Send Test Msg)</button>
             <div class="form-group" style="margin-top: 15px;">
                 <label>Signal Message Template (Use {period} and {signal})</label>
                 <textarea id="f_signalMsg">🎮 Period: {period}&#10;🔮 Prediction: {signal}&#10;💸 Investment: 1X</textarea>
@@ -97,7 +118,7 @@
         <div class="card target">
             <h3>🎯 AUTO STOP BOT BY WINS <label class="switch"><input type="checkbox" id="f_stopOnWinTarget"><span class="slider"></span></label></h3>
             <div class="grid-2">
-                <div class="form-group"><label>1. Target Goal</label><input type="number" id="f_targetWins" value="4"></div>
+                <div class="form-group"><label>1. Target Goal (e.g. Stop after 4 wins)</label><input type="number" id="f_targetWins" value="4"></div>
                 <div class="form-group"><label>2. Live Status</label>
                     <div style="display: flex; gap: 5px;">
                         <input type="number" id="f_currentWins" readonly value="0">
@@ -107,15 +128,22 @@
             </div>
         </div>
 
+        <!-- NEW: ALERTS NOTIFICATIONS -->
         <div class="card alert">
-            <h3>🔔 SESSION ALERTS</h3>
-            <div class="form-group"><label>Warning Msg (30 mins before)</label><input type="text" id="f_warningMsg" placeholder="⏳ Get Ready..."></div>
-            <div class="form-group"><label>Session End Msg</label><input type="text" id="f_endMsg" placeholder="✅ Today's target achieved!"></div>
+            <h3>🔔 SESSION ALERTS & NOTIFICATIONS</h3>
+            <div class="form-group">
+                <label>Warning Message (Sent 30 mins before time-box starts)</label>
+                <input type="text" id="f_warningMsg" placeholder="⏳ Get Ready! Signals will start in 30 minutes...">
+            </div>
+            <div class="form-group">
+                <label>Session End Message (Sent when bot auto-stops after wins/time)</label>
+                <input type="text" id="f_endMsg" placeholder="✅ Today's target achieved! See you in the next session.">
+            </div>
         </div>
 
         <div class="card">
             <h3>🏆 BIG WIN SETTINGS</h3>
-            <div class="form-group"><label>Message</label><input type="text" id="f_bigMsg" value="✅ WIN (BIG)!"></div>
+            <div class="form-group"><label>Big Win Message</label><input type="text" id="f_bigMsg" value="✅ WIN (BIG)!"></div>
             <div class="grid-3">
                 <div class="form-group"><label>Sticker 1</label><input type="text" id="f_bSticker1"></div>
                 <div class="form-group"><label>Sticker 2</label><input type="text" id="f_bSticker2"></div>
@@ -125,7 +153,7 @@
 
         <div class="card small">
             <h3>🏆 SMALL WIN SETTINGS</h3>
-            <div class="form-group"><label>Message</label><input type="text" id="f_smallMsg" value="✅ WIN (SMALL)!"></div>
+            <div class="form-group"><label>Small Win Message</label><input type="text" id="f_smallMsg" value="✅ WIN (SMALL)!"></div>
             <div class="grid-3">
                 <div class="form-group"><label>Sticker 1</label><input type="text" id="f_sSticker1"></div>
                 <div class="form-group"><label>Sticker 2</label><input type="text" id="f_sSticker2"></div>
@@ -136,8 +164,8 @@
         <div class="card loss">
             <h3>❌ LOSS SETTINGS <label style="display:flex; align-items:center; gap:5px; color:#fff; font-size:11px;"> Send Loss? <div class="switch"><input type="checkbox" id="f_sendLoss"><span class="slider"></span></div></label></h3>
             <div class="grid-2">
-                <div class="form-group"><label>Message</label><input type="text" id="f_lossMsg" value="❌ LOSS!"></div>
-                <div class="form-group"><label>Sticker</label><input type="text" id="f_lossSticker"></div>
+                <div class="form-group"><label>Loss Message</label><input type="text" id="f_lossMsg" value="❌ LOSS!"></div>
+                <div class="form-group"><label>Loss Sticker</label><input type="text" id="f_lossSticker"></div>
             </div>
         </div>
 
@@ -147,15 +175,16 @@
             <div class="time-box-container" id="timeBoxesContainer"></div>
         </div>
 
-        <button class="save-btn" id="saveBtn"><i class="fas fa-save"></i> SAVE SETTINGS</button>
+        <button class="save-btn" id="saveBtn"><i class="fas fa-save"></i> SAVE CHANNEL SETTINGS</button>
         <button class="save-btn" id="deleteBtn" style="background:#ff003c; margin-top:10px; color:#fff;"><i class="fas fa-trash"></i> DELETE CHANNEL</button>
     </div>
 
-    <!-- FIREBASE SDK & LOGIC FOR UI ONLY -->
+    <!-- FIREBASE SDK & LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, onValue, set, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
+        // FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyCRDaqKIi2P5Jww0zW0Gdxm2_QXtYmHOQE",
             authDomain: "sihol-3624d.firebaseapp.com",
@@ -172,7 +201,9 @@
 
         let channelsData = {};
         let currentEditingId = null;
+        let channelActiveStates = {};
 
+        // Generate Time Boxes UI
         let tbHtml = "";
         for(let i=0; i<10; i++) {
             tbHtml += `<div class="time-box"><b>BOX ${i+1}</b>
@@ -181,6 +212,7 @@
         }
         document.getElementById('timeBoxesContainer').innerHTML = tbHtml;
 
+        // LOAD DATA
         onValue(channelsRef, (snapshot) => {
             channelsData = snapshot.val() || {};
             renderSidebar();
@@ -200,6 +232,7 @@
                 let name = data.name || "Unnamed Channel";
                 let statusColor = data.isActive ? "#00ff41" : "#ff003c";
                 let serverBadge = `<span style="background:#333; padding:2px 5px; border-radius:4px; font-size:10px; color:#ffd700;">${data.server}</span>`;
+                
                 list.innerHTML += `<div class="channel-tab ${currentEditingId === key ? 'active' : ''}" onclick="window.selectChannel('${key}')">
                     <span style="color:${statusColor}; font-size: 16px;">●</span> 
                     <div style="flex:1; overflow:hidden; text-overflow:ellipsis;">${name}</div>
@@ -213,25 +246,30 @@
             document.getElementById('mainContent').style.display = 'block';
             const data = channelsData[id];
             
-            document.getElementById('f_channelName').value = data.name || '';
+            document.getElementById('f_channelName').value = data.name || 'New Channel';
             document.getElementById('f_server').value = data.server || '30S';
             document.getElementById('f_isActive').checked = data.isActive ?? false;
             document.getElementById('f_botToken').value = data.botToken || '';
             document.getElementById('f_chatId').value = data.chatId || '';
-            document.getElementById('f_signalMsg').value = data.signalMsg || '';
+            document.getElementById('f_signalMsg').value = data.signalMsg || '🎮 Period: {period}\n🔮 Prediction: {signal}\n💸 Investment: 1X';
+            
             document.getElementById('f_stopOnWinTarget').checked = data.stopOnWinTarget ?? false;
             document.getElementById('f_targetWins').value = data.targetWins || 4;
             document.getElementById('f_currentWins').value = data.currentWins || 0;
+
             document.getElementById('f_warningMsg').value = data.warningMsg || '';
             document.getElementById('f_endMsg').value = data.endMsg || '';
+
             document.getElementById('f_bigMsg').value = data.bigMsg || '';
             document.getElementById('f_bSticker1').value = data.bSticker1 || '';
             document.getElementById('f_bSticker2').value = data.bSticker2 || '';
             document.getElementById('f_bSticker3').value = data.bSticker3 || '';
+
             document.getElementById('f_smallMsg').value = data.smallMsg || '';
             document.getElementById('f_sSticker1').value = data.sSticker1 || '';
             document.getElementById('f_sSticker2').value = data.sSticker2 || '';
             document.getElementById('f_sSticker3').value = data.sSticker3 || '';
+
             document.getElementById('f_sendLoss').checked = data.sendLoss ?? true;
             document.getElementById('f_lossMsg').value = data.lossMsg || '';
             document.getElementById('f_lossSticker').value = data.lossSticker || '';
@@ -241,7 +279,9 @@
                 document.getElementById(`f_t_start_${i}`).value = times[i]?.start || '';
                 document.getElementById(`f_t_end_${i}`).value = times[i]?.end || '';
             }
+
             checkStatus();
+            renderSidebar();
         };
 
         function checkStatus() {
@@ -249,16 +289,22 @@
             const token = document.getElementById('f_botToken').value.trim();
             const chat = document.getElementById('f_chatId').value.trim();
             const badge = document.getElementById('channelStatusBadge');
+
             if (!isActive) {
                 badge.innerHTML = '<span style="color:#ff003c;"><i class="fas fa-power-off"></i> BOT OFF</span>';
+                badge.style.borderBottom = "2px solid #ff003c";
             } else if (!token || !chat) {
                 badge.innerHTML = '<span style="color:#ffaa00;"><i class="fas fa-exclamation-triangle"></i> MISSING ID/TOKEN</span>';
+                badge.style.borderBottom = "2px solid #ffaa00";
             } else {
-                badge.innerHTML = '<span style="color:#00ff41; animation: pulse 1.5s infinite;"><i class="fas fa-broadcast-tower"></i> SERVER RUNNING</span>';
+                badge.innerHTML = '<span style="color:#00ff41; animation: pulse 1.5s infinite;"><i class="fas fa-broadcast-tower"></i> BOT ON & READY</span>';
+                badge.style.borderBottom = "2px solid #00ff41";
             }
         }
 
         document.getElementById('f_isActive').addEventListener('change', checkStatus);
+        document.getElementById('f_botToken').addEventListener('input', checkStatus);
+        document.getElementById('f_chatId').addEventListener('input', checkStatus);
 
         document.getElementById('testConnectionBtn').addEventListener('click', async () => {
             const token = document.getElementById('f_botToken').value.trim();
@@ -279,25 +325,43 @@
             let cName = prompt("Enter a Name for this Channel:", "New Channel");
             if(cName === null) return; 
             const newRef = push(channelsRef);
-            set(newRef, { name: cName, server: '30S', isActive: false, stopOnWinTarget: false, targetWins: 4, currentWins: 0, times: [] });
+            set(newRef, { name: cName || 'Unnamed Channel', server: '30S', isActive: false, stopOnWinTarget: false, targetWins: 4, currentWins: 0, times: [] });
         });
 
         document.getElementById('saveBtn').addEventListener('click', () => {
             if(!currentEditingId) return;
             let times = [];
-            for(let i=0; i<10; i++) { times.push({ start: document.getElementById(`f_t_start_${i}`).value, end: document.getElementById(`f_t_end_${i}`).value }); }
+            for(let i=0; i<10; i++) {
+                times.push({ start: document.getElementById(`f_t_start_${i}`).value, end: document.getElementById(`f_t_end_${i}`).value });
+            }
+
             const dataToSave = {
-                name: document.getElementById('f_channelName').value, server: document.getElementById('f_server').value,
-                isActive: document.getElementById('f_isActive').checked, botToken: document.getElementById('f_botToken').value,
-                chatId: document.getElementById('f_chatId').value, signalMsg: document.getElementById('f_signalMsg').value,
-                stopOnWinTarget: document.getElementById('f_stopOnWinTarget').checked, targetWins: parseInt(document.getElementById('f_targetWins').value) || 4,
-                currentWins: parseInt(document.getElementById('f_currentWins').value) || 0, warningMsg: document.getElementById('f_warningMsg').value,
-                endMsg: document.getElementById('f_endMsg').value, bigMsg: document.getElementById('f_bigMsg').value,
-                bSticker1: document.getElementById('f_bSticker1').value, bSticker2: document.getElementById('f_bSticker2').value, bSticker3: document.getElementById('f_bSticker3').value,
-                smallMsg: document.getElementById('f_smallMsg').value, sSticker1: document.getElementById('f_sSticker1').value, sSticker2: document.getElementById('f_sSticker2').value, sSticker3: document.getElementById('f_sSticker3').value,
-                sendLoss: document.getElementById('f_sendLoss').checked, lossMsg: document.getElementById('f_lossMsg').value, lossSticker: document.getElementById('f_lossSticker').value, times: times
+                name: document.getElementById('f_channelName').value || 'Unnamed Channel',
+                server: document.getElementById('f_server').value,
+                isActive: document.getElementById('f_isActive').checked,
+                botToken: document.getElementById('f_botToken').value,
+                chatId: document.getElementById('f_chatId').value,
+                signalMsg: document.getElementById('f_signalMsg').value,
+                stopOnWinTarget: document.getElementById('f_stopOnWinTarget').checked,
+                targetWins: parseInt(document.getElementById('f_targetWins').value) || 4,
+                currentWins: parseInt(document.getElementById('f_currentWins').value) || 0,
+                warningMsg: document.getElementById('f_warningMsg').value,
+                endMsg: document.getElementById('f_endMsg').value,
+                bigMsg: document.getElementById('f_bigMsg').value,
+                bSticker1: document.getElementById('f_bSticker1').value,
+                bSticker2: document.getElementById('f_bSticker2').value,
+                bSticker3: document.getElementById('f_bSticker3').value,
+                smallMsg: document.getElementById('f_smallMsg').value,
+                sSticker1: document.getElementById('f_sSticker1').value,
+                sSticker2: document.getElementById('f_sSticker2').value,
+                sSticker3: document.getElementById('f_sSticker3').value,
+                sendLoss: document.getElementById('f_sendLoss').checked,
+                lossMsg: document.getElementById('f_lossMsg').value,
+                lossSticker: document.getElementById('f_lossSticker').value,
+                times: times
             };
-            set(ref(db, 'channels/' + currentEditingId), dataToSave).then(()=> alert("Saved Successfully! Render server will auto-update in 2-3 seconds."));
+
+            set(ref(db, 'channels/' + currentEditingId), dataToSave).then(()=> alert("Saved Successfully!"));
         });
 
         document.getElementById('resetWinsBtn').addEventListener('click', () => {
@@ -313,6 +377,205 @@
                 currentEditingId = null;
             }
         });
+
+
+        // ==========================================
+        // 🚀 SIGNAL ENGINE (BACKGROUND PROCESS)
+        // ==========================================
+
+        const APIS = {
+            '30S': 'https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json',
+            '1M': 'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json',
+            '3M': 'https://draw.ar-lottery01.com/WinGo/WinGo_3M/GetHistoryIssuePage.json',
+            '5M': 'https://draw.ar-lottery01.com/WinGo/WinGo_5M/GetHistoryIssuePage.json'
+        };
+
+        const serverStates = {
+            '30S': { p: null, pred: null }, '1M': { p: null, pred: null },
+            '3M': { p: null, pred: null }, '5M': { p: null, pred: null }
+        };
+
+        function calculatePrediction(list) {
+            const last5 = list.slice(0, 5).map(x => parseInt(x.number) >= 5 ? "BIG" : "SMALL");
+            if (last5[0] === last5[1] && last5[1] === last5[2]) return last5[0]; 
+            return (last5[0] === "BIG") ? "SMALL" : "BIG";
+        }
+
+        function isTimeAllowed(timesArray) {
+            if(!timesArray || timesArray.length === 0) return true; 
+            let now = new Date();
+            let currentMinutes = now.getHours() * 60 + now.getMinutes();
+            let hasValidBoxSet = false;
+
+            for(let box of timesArray) {
+                if(box.start && box.end) {
+                    hasValidBoxSet = true;
+                    let s = box.start.split(':');
+                    let e = box.end.split(':');
+                    let startMin = parseInt(s[0])*60 + parseInt(s[1]);
+                    let endMin = parseInt(e[0])*60 + parseInt(e[1]);
+                    if(currentMinutes >= startMin && currentMinutes <= endMin) return true;
+                }
+            }
+            return !hasValidBoxSet;
+        }
+
+        async function tgMsg(token, chat, text) {
+            if(!token || !chat || !text) return;
+            try { await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ chat_id: chat, text: text })
+            }); } catch(e) {}
+        }
+
+        async function tgSticker(token, chat, stickerId) {
+            if(!token || !chat || !stickerId) return;
+            try { await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ chat_id: chat, sticker: stickerId })
+            }); } catch(e) {}
+        }
+
+        async function processPeriodChange(server, oldPeriod, actualSize, newPrediction, nextPeriodStr) {
+            for (let key in channelsData) {
+                let c = channelsData[key];
+                
+                if(!channelActiveStates[key]) channelActiveStates[key] = { martingaleActive: false, warningsSent: {} };
+                let internalState = channelActiveStates[key];
+
+                if (c.isActive && c.server === server && c.botToken && c.chatId) {
+                    
+                    let inTime = isTimeAllowed(c.times);
+                    if (!inTime && !internalState.martingaleActive) continue; 
+
+                    let oldPred = serverStates[server].pred;
+                    let isWin = false;
+                    let targetReached = false;
+
+                    // 1. Check Win/Loss
+                    if (oldPred) {
+                        isWin = (oldPred === actualSize);
+                        
+                        if (isWin) {
+                            internalState.martingaleActive = false; 
+
+                            if (c.stopOnWinTarget) {
+                                let newWinCount = (c.currentWins || 0) + 1;
+                                if (newWinCount >= c.targetWins) {
+                                    c.isActive = false; 
+                                    update(ref(db, 'channels/' + key), { isActive: false, currentWins: 0 });
+                                    targetReached = true; 
+                                } else {
+                                    c.currentWins = newWinCount;
+                                    update(ref(db, 'channels/' + key), { currentWins: newWinCount });
+                                }
+                            }
+
+                            if (oldPred === 'BIG') {
+                                await tgMsg(c.botToken, c.chatId, c.bigMsg);
+                                await tgSticker(c.botToken, c.chatId, c.bSticker1);
+                                await tgSticker(c.botToken, c.chatId, c.bSticker2);
+                                await tgSticker(c.botToken, c.chatId, c.bSticker3);
+                            } else {
+                                await tgMsg(c.botToken, c.chatId, c.smallMsg);
+                                await tgSticker(c.botToken, c.chatId, c.sSticker1);
+                                await tgSticker(c.botToken, c.chatId, c.sSticker2);
+                                await tgSticker(c.botToken, c.chatId, c.sSticker3);
+                            } 
+                            
+                            // Send Session End Msg if Target Reached
+                            if (targetReached && c.endMsg) {
+                                await tgMsg(c.botToken, c.chatId, c.endMsg);
+                            }
+
+                        } else {
+                            internalState.martingaleActive = true; 
+                            if (c.sendLoss) {
+                                await tgMsg(c.botToken, c.chatId, c.lossMsg);
+                                await tgSticker(c.botToken, c.chatId, c.lossSticker);
+                            }
+                        }
+                    }
+
+                    if (!c.isActive) continue; 
+                    
+                    // Time Out & Session End Msg
+                    if (!inTime && isWin) {
+                        if (c.endMsg) await tgMsg(c.botToken, c.chatId, c.endMsg);
+                        continue; 
+                    }
+
+                    // 2. SEND NEW SIGNAL
+                    let signalText = c.signalMsg.replace(/{period}/g, nextPeriodStr).replace(/{signal}/g, newPrediction);
+                    await tgMsg(c.botToken, c.chatId, signalText);
+                }
+            }
+            serverStates[server].pred = newPrediction;
+        }
+
+        async function fetchServerData(server) {
+            try {
+                const res = await fetch(APIS[server] + '?t=' + Date.now());
+                const data = await res.json();
+                const latest = data.data.list[0];
+                const actualPeriod = latest.issueNumber;
+                const actualSize = parseInt(latest.number) >= 5 ? "BIG" : "SMALL";
+                let state = serverStates[server];
+
+                if (!state.p) {
+                    state.p = actualPeriod;
+                    state.pred = calculatePrediction(data.data.list);
+                } 
+                else if (state.p !== actualPeriod) {
+                    let newPred = calculatePrediction(data.data.list);
+                    let nextPeriodStr = (BigInt(actualPeriod) + 1n).toString();
+                    await processPeriodChange(server, state.p, actualSize, newPred, nextPeriodStr);
+                    state.p = actualPeriod;
+                }
+            } catch (e) { }
+        }
+
+        setInterval(() => {
+            fetchServerData('30S'); fetchServerData('1M'); 
+            fetchServerData('3M'); fetchServerData('5M');
+        }, 3000);
+
+        // ==========================================
+        // ⏳ 30 MINUTE WARNING CHECKER (Runs every 1 min)
+        // ==========================================
+        setInterval(() => {
+            let now = new Date();
+            let currentMinutes = now.getHours() * 60 + now.getMinutes();
+            let todayStr = now.toDateString();
+
+            for (let key in channelsData) {
+                let c = channelsData[key];
+                
+                // Only send if bot is configured, has times set, and has a warning message written
+                if (!c.botToken || !c.chatId || !c.warningMsg || !c.times) continue;
+
+                if (!channelActiveStates[key]) channelActiveStates[key] = { warningsSent: {} };
+                let state = channelActiveStates[key];
+                if (!state.warningsSent) state.warningsSent = {};
+
+                c.times.forEach((box, index) => {
+                    if (box.start) {
+                        let s = box.start.split(':');
+                        let startMin = parseInt(s[0]) * 60 + parseInt(s[1]);
+                        
+                        // Check if exact 30 minutes before start
+                        if (startMin - currentMinutes === 30) {
+                            // Check if we haven't already sent it today for this specific timebox
+                            if (state.warningsSent[index] !== todayStr) {
+                                tgMsg(c.botToken, c.chatId, c.warningMsg);
+                                state.warningsSent[index] = todayStr; // Mark as sent for today
+                            }
+                        }
+                    }
+                });
+            }
+        }, 60000); // Check every 60 seconds
+
     </script>
 </body>
 </html>
