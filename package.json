@@ -1,17 +1,13 @@
 {
-  "name": "vip-bot-backend",
+  "name": "vip-bot",
   "version": "1.0.0",
-  "description": "Telegram VIP Bot Backend API",
+  "description": "Telegram Signal Bot 24/7",
   "main": "server.js",
-  "type": "module",
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "firebase": "^10.8.1"
+    "puppeteer": "^22.0.0"
   }
 }
