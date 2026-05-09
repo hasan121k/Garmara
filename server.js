@@ -5,20 +5,24 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ১. UptimeRobot এর জন্য একটি হালকা রুট (যাতে সার্ভার কখনো না ঘুমায়)
+// ১. আপনার লিংকে ঢুকলেই যেন মেইন HTML ফাইল (এডমিন প্যানেল) দেখায়
+app.use(express.static(__dirname));
+
 app.get('/', (req, res) => {
-    res.send('🤖 Ultimate VIP Bot is Running 24/7 in Background!');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// ২. আপনার HTML ফাইলটি /app রুটে লুকিয়ে রাখা হলো
-app.use('/app', express.static(__dirname));
+// (UptimeRobot এর জন্য একটি হিডেন লিংক, যাতে সার্ভার না ঘুমায়)
+app.get('/ping', (req, res) => {
+    res.send('pong');
+});
 
 app.listen(PORT, async () => {
     console.log(`✅ Web server is awake on port ${PORT}`);
-    startBot(); // বট স্টার্ট করার ফাংশন কল করা হলো
+    startBot(); // ব্যাকগ্রাউন্ড বট স্টার্ট করা হলো
 });
 
-// বট চালানোর মূল ইঞ্জিন
+// ব্যাকগ্রাউন্ডে বট চালানোর মূল ইঞ্জিন (২৪/৭ চলবে)
 async function startBot() {
     try {
         console.log("⏳ Launching background engine...");
@@ -35,43 +39,40 @@ async function startBot() {
         
         const page = await browser.newPage();
         
-        // ফালতু জিনিস লোড হওয়া বন্ধ করা হলো (RAM বাঁচানোর জন্য)
+        // শুধু ছবি আর ডিজাইন অফ করা হলো (RAM বাঁচানোর জন্য), কিন্তু JS/Firebase চালু থাকবে
         await page.setRequestInterception(true);
         page.on('request', (req) => {
-            if(['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())){
+            if(['image', 'stylesheet', 'media', 'font'].includes(req.resourceType())){
                 req.abort();
             } else {
-                req.continue();
+                req.continue(); // JS এবং API চলতে দেওয়া হলো
             }
         });
 
-        // 🚨 সবচেয়ে জরুরি কোড: ব্রাউজারকে বোঝানো যে ট্যাবটি সবসময় ওপেন আছে
+        // ব্রাউজারকে বোঝানো যে ট্যাবটি সবসময় ওপেন আছে
         const client = await page.target().createCDPSession();
         await client.send('Page.enable');
         await client.send('Emulation.setFocusEmulationEnabled', { enabled: true });
 
-        console.log("Loading dashboard internally...");
+        console.log("Loading your admin panel internally for 24/7 operation...");
         
-        // সার্ভারের ভেতর আপনার ফাইলটি রান হলো
-        await page.goto(`http://localhost:${PORT}/app/index.html`, { waitUntil: 'networkidle2' });
-        console.log("🚀 BOT IS FULLY LIVE! It will never stop now.");
+        // সার্ভারের ভেতর সে আপনার এডমিন প্যানেলটি রান করে রাখবে
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle2' });
+        console.log("🚀 BOT IS FULLY LIVE IN BACKGROUND!");
         
-        // কনসোল লগ দেখার জন্য
         page.on('console', msg => {
             if(msg.text().includes('System Check') || msg.text().includes('Error')) {
                 console.log('BOT LOG:', msg.text());
             }
         });
 
-        // 🚨 অটো-রিস্টার্ট: ব্রাউজার কোনো কারণে ক্র্যাশ করলে আবার চালু হবে
         browser.on('disconnected', () => {
-            console.log('⚠️ Background browser disconnected! Restarting automatically...');
+            console.log('⚠️ Background browser disconnected! Restarting...');
             setTimeout(startBot, 5000);
         });
 
     } catch (error) {
         console.error("❌ Fatal Error:", error);
-        // Error খেলেও থেমে থাকবে না, আবার চেষ্টা করবে
         setTimeout(startBot, 10000); 
     }
 }
