@@ -1,15 +1,21 @@
 import express from 'express';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, update } from "firebase/database";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // ==========================================
 // 1. EXPRESS SERVER SETUP (For Render 24/7)
 // ==========================================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// এই অংশটি আপনার index.html (অ্যাডমিন প্যানেল) শো করাবে লিংকে গেলে
 app.get('/', (req, res) => {
-    res.send("🟢 Ultimate VIP Bot Backend is Running 24/7...");
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
