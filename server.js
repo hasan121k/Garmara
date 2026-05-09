@@ -8,11 +8,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/ping', (req, res) => res.send('24/7 Bot is Running OK!'));
+app.get('/ping', (req, res) => res.send('Bot is Alive & Bypassing Firewalls!'));
 
 app.listen(PORT, () => {
     console.log(`✅ Web server is LIVE on port ${PORT}`);
-    console.log(`🚀 PROFESSIONAL ANTI-BLOCK ENGINE STARTED!`);
+    console.log(`🚀 CLOUDFLARE BYPASS ENGINE STARTED!`);
 });
 
 // Firebase Setup
@@ -35,7 +35,7 @@ let channelActiveStates = {};
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
-    console.log("🔄 Settings updated from Firebase.");
+    console.log("🔄 Settings synced with Firebase.");
 });
 
 const APIS = {
@@ -78,7 +78,8 @@ async function tgMsg(token, chat, text) {
     if(!token || !chat || !text) return;
     try { 
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ chat_id: chat, text: text })
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ chat_id: chat, text: text, parse_mode: 'HTML' })
         }); 
     } catch(e) {}
 }
@@ -87,7 +88,8 @@ async function tgSticker(token, chat, stickerId) {
     if(!token || !chat || !stickerId) return;
     try { 
         await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ chat_id: chat, sticker: stickerId })
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ chat_id: chat, sticker: stickerId })
         }); 
     } catch(e) {}
 }
@@ -138,51 +140,43 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
             if (!c.isActive) continue; 
             let signalText = (c.signalMsg || '').replace(/{period}/g, nextPeriodStr).replace(/{signal}/g, newPrediction);
             await tgMsg(c.botToken, c.chatId, signalText);
-            console.log(`✅ Signal Sent Successfully to ${c.name}`);
+            console.log(`✅ Signal sent to channel: ${c.name}`);
         }
     }
     serverStates[server].pred = newPrediction;
 }
 
-// 🔥 ৩-স্তরের প্রক্সি এন্টি-ব্লক সিস্টেম (লটারি সাইট ব্লক করতে পারবে না)
+// 🔥 রিয়েল হ্যাক: গ্লোবাল প্রক্সি রাউটিং (কোনো সাইট ব্লক করতে পারবে না)
 async function safeFetch(url) {
-    const headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-        "Referer": "https://ar-lottery01.com/",
-        "Origin": "https://ar-lottery01.com"
-    };
+    const timeUrl = url + '?t=' + Date.now();
+    
+    // আমি এখানে ৩টা আলাদা আলাদা বাইপাস সার্ভার সেট করেছি। একটা ফেল মারলে আরেকটা দিয়ে আনবে।
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(timeUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(timeUrl)}`,
+        timeUrl // ডিরেক্ট রিকোয়েস্ট (যদি কখনো আনব্লক হয়)
+    ];
 
-    // লেভেল ১: ডাইরেক্ট ট্রাই করা (মানুষের ব্রাউজার সেজে)
-    try {
-        let res = await fetch(url, { headers });
-        if (res.ok) return await res.json();
-    } catch(e) {}
-
-    // লেভেল ২: প্রথম প্রক্সি বাইপাস সার্ভার (আইপি লুকিয়ে)
-    try {
-        let proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url);
-        let res = await fetch(proxyUrl);
-        if (res.ok) return await res.json();
-    } catch(e) {}
-
-    // লেভেল ৩: দ্বিতীয় ব্যাকআপ প্রক্সি সার্ভার
-    try {
-        let proxyUrl2 = 'https://corsproxy.io/?' + encodeURIComponent(url);
-        let res = await fetch(proxyUrl2);
-        if (res.ok) return await res.json();
-    } catch(e) {}
-
-    return null; // সব ব্লক হলে ক্র্যাশ না করে চুপ থাকবে
+    for (let proxyUrl of proxies) {
+        try {
+            let res = await fetch(proxyUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36' }
+            });
+            if (res.ok) {
+                let data = await res.json();
+                if (data && data.data && data.data.list) return data; // ডাটা পেলে সাথে সাথে রিটার্ন করবে
+            }
+        } catch(e) {
+            // এরর আসলে কোনো মেসেজ দিবে না, চুপচাপ পরের প্রক্সি দিয়ে ট্রাই করবে
+        }
+    }
+    return null;
 }
 
 async function fetchServerData(server) {
     try {
-        const targetUrl = APIS[server] + '?t=' + Date.now();
-        const data = await safeFetch(targetUrl);
-
-        // যদি কোনো কারণে ডাটা না আসে, সে ক্র্যাশ করবে না, পরের বার ট্রাই করবে
-        if (!data || !data.data || !data.data.list) return;
+        const data = await safeFetch(APIS[server]);
+        if (!data) return; // ডাটা না পেলে ক্র্যাশ করবে না
 
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
@@ -201,11 +195,11 @@ async function fetchServerData(server) {
     } catch (e) { }
 }
 
-// 24/7 Engine Loop (প্রতি ৪ সেকেন্ড পর পর চেক করবে, যেন প্রক্সি ব্লক না হয়)
+// 24/7 Engine Loop (টাইম একটু বাড়িয়ে দিলাম যাতে প্রক্সি সার্ভার রাগ না করে)
 setInterval(() => {
     fetchServerData('30S'); fetchServerData('1M'); 
     fetchServerData('3M'); fetchServerData('5M');
-}, 4000);
+}, 4500);
 
 // ক্র্যাশ রোধ করার সুরক্ষা কবচ
 process.on('uncaughtException', err => {});
