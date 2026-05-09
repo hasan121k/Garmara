@@ -5,27 +5,27 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ১. আপনার লিংকে ঢুকলেই যেন মেইন HTML ফাইল (এডমিন প্যানেল) দেখায়
+// লিংকে ঢুকলে এডমিন প্যানেল দেখানোর জন্য
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// (UptimeRobot এর জন্য একটি হিডেন লিংক, যাতে সার্ভার না ঘুমায়)
+// UptimeRobot এর পিং এর জন্য
 app.get('/ping', (req, res) => {
     res.send('pong');
 });
 
 app.listen(PORT, async () => {
     console.log(`✅ Web server is awake on port ${PORT}`);
-    startBot(); // ব্যাকগ্রাউন্ড বট স্টার্ট করা হলো
+    startBot(); 
 });
 
-// ব্যাকগ্রাউন্ডে বট চালানোর মূল ইঞ্জিন (২৪/৭ চলবে)
 async function startBot() {
     try {
         console.log("⏳ Launching background engine...");
+        
         const browser = await puppeteer.launch({
             headless: 'new',
             args: [
@@ -33,37 +33,48 @@ async function startBot() {
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--single-process'
+                '--single-process',
+                // 🚨 নিচের এই কমান্ডগুলো ব্রাউজারকে ঘুমাতে দিবে না
+                '--disable-background-timer-throttling', 
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding'
             ]
         });
         
         const page = await browser.newPage();
         
-        // শুধু ছবি আর ডিজাইন অফ করা হলো (RAM বাঁচানোর জন্য), কিন্তু JS/Firebase চালু থাকবে
+        // 🚨 লটারি ওয়েবসাইট যেন রোবট ভাবতে না পারে, তাই রিয়েল মানুষের ব্রাউজার সেট করা হলো
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        // শুধু স্টাইল এবং ছবি অফ করা হলো, API/JS রানিং থাকবে
         await page.setRequestInterception(true);
         page.on('request', (req) => {
-            if(['image', 'stylesheet', 'media', 'font'].includes(req.resourceType())){
+            const type = req.resourceType();
+            if(['image', 'stylesheet', 'media', 'font'].includes(type)){
                 req.abort();
             } else {
-                req.continue(); // JS এবং API চলতে দেওয়া হলো
+                req.continue();
             }
         });
 
-        // ব্রাউজারকে বোঝানো যে ট্যাবটি সবসময় ওপেন আছে
+        // ব্রাউজারকে বোঝানো যে ট্যাবটি সবসময় ফোকাস করা আছে
         const client = await page.target().createCDPSession();
         await client.send('Page.enable');
         await client.send('Emulation.setFocusEmulationEnabled', { enabled: true });
 
-        console.log("Loading your admin panel internally for 24/7 operation...");
+        console.log("Loading dashboard internally...");
         
-        // সার্ভারের ভেতর সে আপনার এডমিন প্যানেলটি রান করে রাখবে
-        await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle2' });
+        // Firebase যেন ঠিকমতো লোড হতে পারে, তাই domcontentloaded ব্যবহার করা হলো
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
         console.log("🚀 BOT IS FULLY LIVE IN BACKGROUND!");
         
+        // Render এর লগে (Log) সব মেসেজ দেখার জন্য (কোনো Error আসলে ধরা পড়বে)
         page.on('console', msg => {
-            if(msg.text().includes('System Check') || msg.text().includes('Error')) {
-                console.log('BOT LOG:', msg.text());
-            }
+            console.log('BROWSER LOG:', msg.text());
+        });
+
+        page.on('pageerror', err => {
+            console.log('BROWSER ERROR:', err.message);
         });
 
         browser.on('disconnected', () => {
