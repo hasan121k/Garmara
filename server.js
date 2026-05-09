@@ -4,12 +4,11 @@ import { getDatabase, ref, onValue, update } from "firebase/database";
 import path from 'path';
 
 // ==========================================
-// 1. EXPRESS SERVER SETUP (For Render 24/7)
+// 1. EXPRESS SERVER SETUP
 // ==========================================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// এই অংশটি ফাইলটি ১০০% গ্যারান্টি সহকারে খুঁজে বের করবে
 app.get('/', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'index.html'));
 });
@@ -40,7 +39,7 @@ let channelActiveStates = {};
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
-    console.log("🔄 Firebase Data Synced!");
+    console.log("🔄 Firebase Data Synced! Active Channels:", Object.keys(channelsData).length);
 });
 
 // ==========================================
@@ -64,7 +63,6 @@ function calculatePrediction(list) {
         if (last5[0] === last5[1] && last5[1] === last5[2]) return last5[0];
         return (last5[0] === "BIG") ? "SMALL" : "BIG";
     } catch (e) {
-        console.error("Prediction Error:", e.message);
         return "BIG"; 
     }
 }
@@ -91,12 +89,17 @@ function isTimeAllowed(timesArray) {
 async function tgMsg(token, chat, text) {
     if (!token || !chat || !text) return;
     try {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        console.log(`📤 Sending Telegram Msg to ${chat}:`, text.replace(/\n/g, ' '));
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chat, text: text })
         });
-    } catch (e) { }
+        const data = await res.json();
+        if(!data.ok) console.error("❌ Telegram API Error:", data.description);
+    } catch (e) { 
+        console.error("❌ Fetch Error in tgMsg:", e.message); 
+    }
 }
 
 async function tgSticker(token, chat, stickerId) {
@@ -107,10 +110,12 @@ async function tgSticker(token, chat, stickerId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chat, sticker: stickerId })
         });
-    } catch (e) { }
+    } catch (e) {}
 }
 
 async function processPeriodChange(server, oldPeriod, actualSize, newPrediction, nextPeriodStr) {
+    console.log(`🎰 [${server}] Result: Period ${oldPeriod} was ${actualSize}. Next Prediction: ${newPrediction}`);
+    
     for (let key in channelsData) {
         let c = channelsData[key];
 
@@ -119,7 +124,10 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 
         if (c.isActive && c.server === server && c.botToken && c.chatId) {
             let inTime = isTimeAllowed(c.times);
-            if (!inTime && !internalState.martingaleActive) continue;
+            if (!inTime && !internalState.martingaleActive) {
+                console.log(`⏳ [${c.name}] Skipping: Not in allowed time.`);
+                continue;
+            }
 
             let oldPred = serverStates[server].pred;
             let isWin = false;
@@ -134,6 +142,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
                     if (c.stopOnWinTarget) {
                         let newWinCount = (c.currentWins || 0) + 1;
                         if (newWinCount >= c.targetWins) {
+                            console.log(`🎯 [${c.name}] Target Reached! Turning OFF bot.`);
                             c.isActive = false;
                             update(ref(db, 'channels/' + key), { isActive: false, currentWins: 0 });
                             targetReached = true;
@@ -193,6 +202,7 @@ async function fetchServerData(server) {
         if (!state.p) {
             state.p = actualPeriod;
             state.pred = calculatePrediction(data.data.list);
+            console.log(`🔄 Init [${server}]: Started at Period ${actualPeriod}`);
         }
         else if (state.p !== actualPeriod) {
             let newPred = calculatePrediction(data.data.list);
@@ -200,7 +210,9 @@ async function fetchServerData(server) {
             await processPeriodChange(server, state.p, actualSize, newPred, nextPeriodStr);
             state.p = actualPeriod;
         }
-    } catch (e) {}
+    } catch (e) {
+        // console.error(`❌ API Error [${server}]:`, e.message);
+    }
 }
 
 setInterval(() => {
@@ -209,34 +221,3 @@ setInterval(() => {
     fetchServerData('3M'); 
     fetchServerData('5M');
 }, 3000);
-
-setInterval(() => {
-    try {
-        let now = new Date();
-        let currentMinutes = now.getHours() * 60 + now.getMinutes();
-        let todayStr = now.toDateString();
-
-        for (let key in channelsData) {
-            let c = channelsData[key];
-            if (!c.botToken || !c.chatId || !c.warningMsg || !c.times) continue;
-
-            if (!channelActiveStates[key]) channelActiveStates[key] = { warningsSent: {} };
-            let state = channelActiveStates[key];
-            if (!state.warningsSent) state.warningsSent = {};
-
-            c.times.forEach((box, index) => {
-                if (box.start) {
-                    let s = box.start.split(':');
-                    let startMin = parseInt(s[0]) * 60 + parseInt(s[1]);
-
-                    if (startMin - currentMinutes === 30) {
-                        if (state.warningsSent[index] !== todayStr) {
-                            tgMsg(c.botToken, c.chatId, c.warningMsg);
-                            state.warningsSent[index] = todayStr;
-                        }
-                    }
-                }
-            });
-        }
-    } catch (e) {}
-}, 60000);
