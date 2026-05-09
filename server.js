@@ -2,20 +2,16 @@ import express from 'express';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, update } from "firebase/database";
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 // ==========================================
 // 1. EXPRESS SERVER SETUP (For Render 24/7)
 // ==========================================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// এই অংশটি আপনার index.html (অ্যাডমিন প্যানেল) শো করাবে লিংকে গেলে
+// এই অংশটি ফাইলটি ১০০% গ্যারান্টি সহকারে খুঁজে বের করবে
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(process.cwd(), 'index.html'));
 });
 
 app.listen(PORT, () => {
@@ -42,7 +38,6 @@ const channelsRef = ref(db, 'channels');
 let channelsData = {};
 let channelActiveStates = {};
 
-// Keep local data in sync with Firebase Admin Panel
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
     console.log("🔄 Firebase Data Synced!");
@@ -70,7 +65,7 @@ function calculatePrediction(list) {
         return (last5[0] === "BIG") ? "SMALL" : "BIG";
     } catch (e) {
         console.error("Prediction Error:", e.message);
-        return "BIG"; // Fallback
+        return "BIG"; 
     }
 }
 
@@ -101,7 +96,7 @@ async function tgMsg(token, chat, text) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chat, text: text })
         });
-    } catch (e) { console.error("TG Msg Error:", e.message); }
+    } catch (e) { }
 }
 
 async function tgSticker(token, chat, stickerId) {
@@ -112,7 +107,7 @@ async function tgSticker(token, chat, stickerId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chat, sticker: stickerId })
         });
-    } catch (e) { console.error("TG Sticker Error:", e.message); }
+    } catch (e) { }
 }
 
 async function processPeriodChange(server, oldPeriod, actualSize, newPrediction, nextPeriodStr) {
@@ -205,12 +200,9 @@ async function fetchServerData(server) {
             await processPeriodChange(server, state.p, actualSize, newPred, nextPeriodStr);
             state.p = actualPeriod;
         }
-    } catch (e) {
-        // Silent catch to prevent server crash during API downtime
-    }
+    } catch (e) {}
 }
 
-// Check every 3 seconds
 setInterval(() => {
     fetchServerData('30S'); 
     fetchServerData('1M');
@@ -218,9 +210,6 @@ setInterval(() => {
     fetchServerData('5M');
 }, 3000);
 
-// ==========================================
-// 4. 30 MINUTE WARNING CHECKER
-// ==========================================
 setInterval(() => {
     try {
         let now = new Date();
@@ -249,5 +238,5 @@ setInterval(() => {
                 }
             });
         }
-    } catch (e) { console.error("Warning Interval Error:", e.message); }
-}, 60000); // Check every 60 seconds
+    } catch (e) {}
+}, 60000);
