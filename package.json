@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Telegram Signal Bot 24/7 Pure Node",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
