@@ -4,6 +4,9 @@
   "description": "Telegram VIP Bot Backend API",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
