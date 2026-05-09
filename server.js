@@ -91,7 +91,7 @@ async function tgMsg(token, chat, text) {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chat, text: text })
         });
-    } catch (e) { console.error("❌ TG Msg Error:", e.message); }
+    } catch (e) {}
 }
 
 async function tgSticker(token, chat, stickerId) {
@@ -160,22 +160,30 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     serverStates[server].pred = newPrediction;
 }
 
-// ⚠️ এখানে ছদ্মবেশ (Headers) অ্যাড করা হয়েছে
+// ⚠️ PROXY BYPASS LOGIC (IP Block এড়ানোর জন্য)
 async function fetchServerData(server) {
     try {
-        const res = await fetch(APIS[server] + '?t=' + Date.now(), {
+        // মেইন লিংক
+        const targetUrl = APIS[server] + '?t=' + Date.now();
+        // প্রক্সি লিংক (Corsproxy)
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
+        const res = await fetch(proxyUrl, {
             method: 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Connection': 'keep-alive'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
             }
         });
         
-        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        if (!res.ok) throw new Error(`Proxy Error ${res.status}`);
         
         const data = await res.json();
+        
+        // চেক করা যে ডাটা আসলেই Wingo থেকে এসেছে কিনা
+        if (!data.data || !data.data.list || data.data.list.length === 0) {
+            throw new Error("Invalid format received from Proxy");
+        }
+
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
         const actualSize = parseInt(latest.number) >= 5 ? "BIG" : "SMALL";
@@ -184,7 +192,7 @@ async function fetchServerData(server) {
         if (!state.p) {
             state.p = actualPeriod;
             state.pred = calculatePrediction(data.data.list);
-            console.log(`✅ [${server}] Connected! Start Period: ${actualPeriod}`);
+            console.log(`✅ [${server}] SUCCESS! Connected & Bypassed Block. Start Period: ${actualPeriod}`);
         }
         else if (state.p !== actualPeriod) {
             let newPred = calculatePrediction(data.data.list);
@@ -193,7 +201,7 @@ async function fetchServerData(server) {
             state.p = actualPeriod;
         }
     } catch (e) {
-        console.error(`❌ API Error [${server}]:`, e.message);
+        console.error(`❌ API Bypass Error [${server}]:`, e.message);
     }
 }
 
