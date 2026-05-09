@@ -164,7 +164,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
 // ==========================================
 
 // 👇 নিচে আপনার গুগলের লিংকটি দিন (ইনভার্টেড কমা " " এর ভেতরে)
-const GOOGLE_PROXY = "এখানে_আপনার_গুগল_লিংক_দিন"; 
+const GOOGLE_PROXY = "https://script.google.com/macros/s/AKfycbxnsAQJqFn9ECFMyEpsbrB6DkSjZPT5oR8dqHs5QNoOoZXi3WGZS2MKROAon1BfSKvd/exec"; 
 
 async function fetchServerData(server) {
     if (GOOGLE_PROXY === "এখানে_আপনার_গুগল_লিংক_দিন" || GOOGLE_PROXY === "") {
