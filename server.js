@@ -12,10 +12,9 @@ app.get('/ping', (req, res) => res.send('Bot is Alive & Working 24/7!'));
 
 app.listen(PORT, () => {
     console.log(`✅ Web server is LIVE on port ${PORT}`);
-    console.log(`🚀 24/7 BACKGROUND ENGINE STARTED!`);
+    console.log(`🚀 MULTI-CHANNEL BACKGROUND ENGINE STARTED!`);
 });
 
-// আপনার দেওয়া 400ms delay for stickers
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const firebaseConfig = {
@@ -37,7 +36,7 @@ let channelActiveStates = {};
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
-    console.log("🔄 Settings synced with Firebase.");
+    console.log(`🔄 Channels Synced! Total Channels: ${Object.keys(channelsData).length}`);
 });
 
 const APIS = {
@@ -52,22 +51,26 @@ const serverStates = {
     '3M': { p: null, pred: null }, '5M': { p: null, pred: null }
 };
 
-// আপনার দেওয়া হুবহু প্রেডিকশন লজিক
 function calculatePrediction(list) {
     const last5 = list.slice(0, 5).map(x => parseInt(x.number) >= 5 ? "BIG" : "SMALL");
     if (last5[0] === last5[1] && last5[1] === last5[2]) return last5[0]; 
     return (last5[0] === "BIG") ? "SMALL" : "BIG";
 }
 
-// আপনার দেওয়া Midnight crossing fix সহ টাইমার লজিক
-function isTimeAllowed(timesArray) {
-    if(!timesArray || timesArray.length === 0) return true; 
-    let now = new Date();
+// 🚨 Timezone & Format Fix
+function isTimeAllowed(timesRaw) {
+    if(!timesRaw) return true; 
+    let timesArray = Array.isArray(timesRaw) ? timesRaw : Object.values(timesRaw);
+    if(timesArray.length === 0) return true;
+
+    // বাংলাদেশ টাইম অনুযায়ী হিসাব করবে
+    let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Dhaka"}));
     let currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
     let hasValidBoxSet = false;
 
     for(let box of timesArray) {
-        if(box.start && box.end) {
+        if(box && box.start && box.end) {
             hasValidBoxSet = true;
             let s = box.start.split(':');
             let e = box.end.split(':');
@@ -84,27 +87,29 @@ function isTimeAllowed(timesArray) {
     return !hasValidBoxSet;
 }
 
+// 🚨 Telegram Error Logger
 async function tgMsg(token, chat, text) {
     if(!token || !chat || !text) return;
     try { 
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        let res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ chat_id: chat, text: text, parse_mode: 'HTML' })
         }); 
+        let json = await res.json();
+        if(!json.ok) console.log(`⚠️ Telegram Warning [${chat}]:`, json.description);
     } catch(e) {}
 }
 
 async function tgSticker(token, chat, stickerId) {
     if(!token || !chat || !stickerId || stickerId.trim() === '') return;
     try { 
-        await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
+        let res = await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ chat_id: chat, sticker: stickerId.trim() })
         }); 
     } catch(e) {}
 }
 
-// আপনার দেওয়া lastSentPeriod এর হুবহু লজিক এবং sleep 400ms লজিক
 async function processPeriodChange(server, oldPeriod, actualSize, newPrediction, nextPeriodStr) {
     const channelTasks = [];
 
@@ -114,86 +119,87 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
         if (c.isActive && c.server === server && c.botToken && c.chatId) {
             
             channelTasks.push((async () => {
-                if(!channelActiveStates[key]) {
-                    channelActiveStates[key] = { 
-                        martingaleActive: false, 
-                        warningsSent: {},
-                        lastSentPeriod: null, 
-                        lastSentPred: null
-                    };
-                }
-                let internalState = channelActiveStates[key];
+                try {
+                    if(!channelActiveStates[key]) {
+                        channelActiveStates[key] = { 
+                            martingaleActive: false, 
+                            warningsSent: {},
+                            lastSentPeriod: null, 
+                            lastSentPred: null
+                        };
+                    }
+                    let internalState = channelActiveStates[key];
 
-                let inTime = isTimeAllowed(c.times);
-                let hasUnresolvedSignal = (internalState.lastSentPeriod === oldPeriod);
+                    let inTime = isTimeAllowed(c.times);
+                    let hasUnresolvedSignal = (internalState.lastSentPeriod === oldPeriod);
 
-                if (!inTime && !internalState.martingaleActive && !hasUnresolvedSignal) {
-                    return; 
-                }
+                    if (!inTime && !internalState.martingaleActive && !hasUnresolvedSignal) {
+                        return; 
+                    }
 
-                let isWin = false;
-                let targetReached = false;
+                    let isWin = false;
+                    let targetReached = false;
 
-                if (hasUnresolvedSignal) {
-                    isWin = (internalState.lastSentPred === actualSize);
-                    
-                    if (isWin) {
-                        internalState.martingaleActive = false; 
+                    if (hasUnresolvedSignal) {
+                        isWin = (internalState.lastSentPred === actualSize);
+                        
+                        if (isWin) {
+                            internalState.martingaleActive = false; 
 
-                        if (c.stopOnWinTarget) {
-                            let newWinCount = (c.currentWins || 0) + 1;
-                            if (newWinCount >= c.targetWins) {
-                                c.isActive = false; 
-                                update(ref(db, 'channels/' + key), { isActive: false, currentWins: 0 });
-                                targetReached = true; 
+                            if (c.stopOnWinTarget) {
+                                let newWinCount = (c.currentWins || 0) + 1;
+                                if (newWinCount >= c.targetWins) {
+                                    c.isActive = false; 
+                                    update(ref(db, 'channels/' + key), { isActive: false, currentWins: 0 });
+                                    targetReached = true; 
+                                } else {
+                                    c.currentWins = newWinCount;
+                                    update(ref(db, 'channels/' + key), { currentWins: newWinCount });
+                                }
+                            }
+
+                            if (internalState.lastSentPred === 'BIG') {
+                                if (c.bigMsg) await tgMsg(c.botToken, c.chatId, c.bigMsg);
+                                await sleep(400); 
+                                if (c.bSticker1) { await tgSticker(c.botToken, c.chatId, c.bSticker1); await sleep(400); }
+                                if (c.bSticker2) { await tgSticker(c.botToken, c.chatId, c.bSticker2); await sleep(400); }
+                                if (c.bSticker3) { await tgSticker(c.botToken, c.chatId, c.bSticker3); }
                             } else {
-                                c.currentWins = newWinCount;
-                                update(ref(db, 'channels/' + key), { currentWins: newWinCount });
+                                if (c.smallMsg) await tgMsg(c.botToken, c.chatId, c.smallMsg);
+                                await sleep(400);
+                                if (c.sSticker1) { await tgSticker(c.botToken, c.chatId, c.sSticker1); await sleep(400); }
+                                if (c.sSticker2) { await tgSticker(c.botToken, c.chatId, c.sSticker2); await sleep(400); }
+                                if (c.sSticker3) { await tgSticker(c.botToken, c.chatId, c.sSticker3); }
+                            } 
+                            
+                            if ((targetReached || !inTime) && c.endMsg) {
+                                await sleep(400);
+                                await tgMsg(c.botToken, c.chatId, c.endMsg);
+                            }
+
+                        } else {
+                            internalState.martingaleActive = true; 
+                            if (c.sendLoss) {
+                                if (c.lossMsg) await tgMsg(c.botToken, c.chatId, c.lossMsg);
+                                await sleep(400);
+                                if (c.lossSticker) await tgSticker(c.botToken, c.chatId, c.lossSticker);
                             }
                         }
-
-                        if (internalState.lastSentPred === 'BIG') {
-                            if (c.bigMsg) await tgMsg(c.botToken, c.chatId, c.bigMsg);
-                            await sleep(400); 
-                            if (c.bSticker1) { await tgSticker(c.botToken, c.chatId, c.bSticker1); await sleep(400); }
-                            if (c.bSticker2) { await tgSticker(c.botToken, c.chatId, c.bSticker2); await sleep(400); }
-                            if (c.bSticker3) { await tgSticker(c.botToken, c.chatId, c.bSticker3); }
-                        } else {
-                            if (c.smallMsg) await tgMsg(c.botToken, c.chatId, c.smallMsg);
-                            await sleep(400);
-                            if (c.sSticker1) { await tgSticker(c.botToken, c.chatId, c.sSticker1); await sleep(400); }
-                            if (c.sSticker2) { await tgSticker(c.botToken, c.chatId, c.sSticker2); await sleep(400); }
-                            if (c.sSticker3) { await tgSticker(c.botToken, c.chatId, c.sSticker3); }
-                        } 
-                        
-                        if ((targetReached || !inTime) && c.endMsg) {
-                            await sleep(400);
-                            await tgMsg(c.botToken, c.chatId, c.endMsg);
-                        }
-
-                    } else {
-                        internalState.martingaleActive = true; 
-                        if (c.sendLoss) {
-                            if (c.lossMsg) await tgMsg(c.botToken, c.chatId, c.lossMsg);
-                            await sleep(400);
-                            if (c.lossSticker) await tgSticker(c.botToken, c.chatId, c.lossSticker);
-                        }
                     }
+
+                    if (!c.isActive) return; 
+                    if (!inTime && !internalState.martingaleActive) return; 
+
+                    await sleep(400);
+                    let signalText = (c.signalMsg || '').replace(/{period}/g, nextPeriodStr).replace(/{signal}/g, newPrediction);
+                    await tgMsg(c.botToken, c.chatId, signalText);
+
+                    internalState.lastSentPeriod = nextPeriodStr;
+                    internalState.lastSentPred = newPrediction;
+                    
+                } catch(err) {
+                    console.log(`❌ Error processing channel ${c.name}:`, err.message);
                 }
-
-                if (!c.isActive) return; 
-                
-                if (!inTime && !internalState.martingaleActive) {
-                    return; 
-                }
-
-                await sleep(400);
-                let signalText = (c.signalMsg || '').replace(/{period}/g, nextPeriodStr).replace(/{signal}/g, newPrediction);
-                await tgMsg(c.botToken, c.chatId, signalText);
-
-                internalState.lastSentPeriod = nextPeriodStr;
-                internalState.lastSentPred = newPrediction;
-
             })());
         }
     }
@@ -201,7 +207,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     await Promise.all(channelTasks);
 }
 
-// 🔥 Anti-Block Proxy System (লটারি সাইট যেন ব্লক করতে না পারে)
+// 🔥 Anti-Block Proxy System
 async function safeFetch(url) {
     const timeUrl = url + '?t=' + Date.now();
     const proxies = [
@@ -222,7 +228,6 @@ async function safeFetch(url) {
     return null;
 }
 
-// আপনার দেওয়া হুবহু fetchServerData লজিক
 async function fetchServerData(server) {
     try {
         const data = await safeFetch(APIS[server]);
@@ -250,17 +255,14 @@ async function fetchServerData(server) {
     } catch (e) { }
 }
 
-// প্রতি 4 সেকেন্ডে ডাটা চেক করবে (প্রক্সি সেফটির জন্য)
 setInterval(() => {
     fetchServerData('30S'); fetchServerData('1M'); 
     fetchServerData('3M'); fetchServerData('5M');
 }, 4000);
 
-// ==========================================
-// ⏳ 30 MINUTE WARNING CHECKER (আপনার দেওয়া হুবহু লজিক)
-// ==========================================
+// 30 MIN WARNING CHECKER (BD Timezone)
 setInterval(() => {
-    let now = new Date();
+    let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Dhaka"}));
     let currentMinutes = now.getHours() * 60 + now.getMinutes();
     let todayStr = now.toDateString();
 
@@ -273,8 +275,10 @@ setInterval(() => {
         let state = channelActiveStates[key];
         if (!state.warningsSent) state.warningsSent = {};
 
-        c.times.forEach((box, index) => {
-            if (box.start) {
+        let timesArray = Array.isArray(c.times) ? c.times : Object.values(c.times);
+
+        timesArray.forEach((box, index) => {
+            if (box && box.start) {
                 let s = box.start.split(':');
                 let startMin = parseInt(s[0]) * 60 + parseInt(s[1]);
                 
