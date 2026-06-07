@@ -39,11 +39,12 @@ onValue(channelsRef, (snapshot) => {
     console.log(`🔄 Channels Synced! Total Channels in DB: ${Object.keys(channelsData).length}`);
 });
 
+// সচল ব্যাকআপ লটারি সার্ভার ডোমেন যুক্ত করা হয়েছে
 const APIS = {
-    '30S': 'https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json',
-    '1M': 'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json',
-    '3M': 'https://draw.ar-lottery01.com/WinGo/WinGo_3M/GetHistoryIssuePage.json',
-    '5M': 'https://draw.ar-lottery01.com/WinGo/WinGo_5M/GetHistoryIssuePage.json'
+    '30S': 'https://draw.ar-lottery02.com/WinGo/WinGo_30S/GetHistoryIssuePage.json',
+    '1M': 'https://draw.ar-lottery02.com/WinGo/WinGo_1M/GetHistoryIssuePage.json',
+    '3M': 'https://draw.ar-lottery02.com/WinGo/WinGo_3M/GetHistoryIssuePage.json',
+    '5M': 'https://draw.ar-lottery02.com/WinGo/WinGo_5M/GetHistoryIssuePage.json'
 };
 
 const serverStates = {
@@ -212,48 +213,33 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     await Promise.all(channelTasks);
 }
 
-// Multi-Proxy & Error Logger Engine
+// Highly Secure Google API Proxy Fetcher
 async function safeFetch(url) {
     const timeUrl = url + '?t=' + Date.now();
     const encodedUrl = encodeURIComponent(timeUrl);
     
-    // ৫টি শক্তিশালী প্রক্সি পুল (আপনার ক্লাউডফ্লেয়ার ও গুগল স্ক্রিপ্টসহ)
-    const proxies = [
-        `https://corsproxy.io/?url=${encodedUrl}`,
-        `https://autumn-sun-c0ee.habiburrahman009000.workers.dev/?url=${encodedUrl}`,
-        `https://script.google.com/macros/s/AKfycbyKdJNB9kSmVg9Ye70z93knOaBQhkRUxkiis_fT9E6HGhRhxtJKkU1kpbvGDeCc5IQq3g/exec?url=${encodedUrl}`,
-        `https://api.allorigins.win/raw?url=${encodedUrl}`,
-        `https://thingproxy.freeboard.io/fetch/${timeUrl}`
-    ];
+    // আপনার জেনারেট করা গুগল স্ক্রিপ্ট প্রক্সি লিংক
+    const myGoogleProxy = "https://script.google.com/macros/s/AKfycbyKdJNB9kSmVg9Ye70z93knOaBQhkRUxkiis_fT9E6HGhRhxtJKkU1kpbvGDeCc5IQq3g/exec?url=";
 
-    for (let i = 0; i < proxies.length; i++) {
-        let proxyUrl = proxies[i];
-        try {
-            // প্রক্সি রেসপন্স টাইমআউট বাড়িয়ে ১২ সেকেন্ড করা হলো
-            let res = await fetch(proxyUrl, { 
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-                signal: AbortSignal.timeout(12000) 
-            });
+    try {
+        let res = await fetch(myGoogleProxy + encodedUrl, { 
+            signal: AbortSignal.timeout(12000) 
+        });
+        
+        if (res.ok) {
+            let text = await res.text();
             
-            if (res.ok) {
-                let text = await res.text();
-                
-                // চেক করবে সঠিক JSON ফরমেট কি না
-                if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-                    let data = JSON.parse(text);
-                    if (data && data.data && data.data.list) {
-                        console.log(`✅ Proxy ${i+1} Succeeded!`);
-                        return data;
-                    }
-                } else {
-                    console.log(`⚠️ Proxy ${i+1} returned HTML instead of JSON (Blocked)`);
+            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                let data = JSON.parse(text);
+                if (data && data.data && data.data.list) {
+                    return data;
                 }
             } else {
-                console.log(`❌ Proxy ${i+1} failed with Status: ${res.status}`);
+                console.log(`⚠️ Google Proxy received invalid content format.`);
             }
-        } catch(e) {
-            console.log(`❌ Proxy ${i+1} error: ${e.message}`);
         }
+    } catch(e) {
+        console.log(`❌ Fetch Error via Google Proxy:`, e.message);
     }
     return null;
 }
