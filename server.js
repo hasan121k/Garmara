@@ -212,33 +212,28 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     await Promise.all(channelTasks);
 }
 
-// Anti-Block Proxy System
-async function safeFetch(url, serverName) {
-    const timeUrl = url + '?t=' + Date.now();
-    const proxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(timeUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(timeUrl)}`,
-        timeUrl
-    ];
+// Custom Cloudflare Proxy Fetcher
+async function safeFetch(url) {
+    // আপনার ক্লাউডফ্লেয়ার ওয়ার্কারের নিজস্ব প্রক্সি ইউআরএল
+    const myProxy = "https://autumn-sun-c0ee.habiburrahman009000.workers.dev/?url="; 
 
-    for (let i = 0; i < proxies.length; i++) {
-        let proxyUrl = proxies[i];
-        try {
-            let res = await fetch(proxyUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }});
-            if (res.ok) {
-                let data = await res.json();
-                if (data && data.data && data.data.list) {
-                    return data;
-                }
+    try {
+        let res = await fetch(myProxy + encodeURIComponent(url));
+        if (res.ok) {
+            let data = await res.json();
+            if (data && data.data && data.data.list) {
+                return data;
             }
-        } catch(e) {}
+        }
+    } catch(e) {
+        console.log("❌ Custom Proxy Error:", e.message);
     }
     return null;
 }
 
 async function fetchServerData(server) {
     try {
-        const data = await safeFetch(APIS[server], server);
+        const data = await safeFetch(APIS[server]);
         if (!data) {
             console.log(`❌ [${server}] API-তে ডেটা পাওয়া যায়নি (Proxy/IP Blocked)`);
             return; 
