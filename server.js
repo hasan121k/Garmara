@@ -212,45 +212,33 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     await Promise.all(channelTasks);
 }
 
-// Multi-Proxy & JSON Validation Engine
+// Highly Secure Google API Proxy Fetcher
 async function safeFetch(url) {
     const timeUrl = url + '?t=' + Date.now();
     const encodedUrl = encodeURIComponent(timeUrl);
     
-    // ৫টি শক্তিশালী প্রক্সির পুল (আপনার ক্লাউডফ্লেয়ার সহ)
-    const proxies = [
-        `https://corsproxy.io/?url=${encodedUrl}`,
-        `https://autumn-sun-c0ee.habiburrahman009000.workers.dev/?url=${encodedUrl}`,
-        `https://api.allorigins.win/raw?url=${encodedUrl}`,
-        `https://thingproxy.freeboard.io/fetch/${timeUrl}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}`
-    ];
+    // আপনার জেনারেট করা গুগল স্ক্রিপ্ট প্রক্সি লিংক
+    const myGoogleProxy = "https://script.google.com/macros/s/AKfycbyKdJNB9kSmVg9Ye70z93knOaBQhkRUxkiis_fT9E6HGhRhxtJKkU1kpbvGDeCc5IQq3g/exec?url=";
 
-    for (let i = 0; i < proxies.length; i++) {
-        let proxyUrl = proxies[i];
-        try {
-            // প্রতিটি প্রক্সির জন্য সর্বোচ্চ ৪ সেকেন্ড সময় দেওয়া হয়েছে
-            let res = await fetch(proxyUrl, { 
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-                signal: AbortSignal.timeout(4000) 
-            });
+    try {
+        let res = await fetch(myGoogleProxy + encodedUrl, { 
+            signal: AbortSignal.timeout(6000) 
+        });
+        
+        if (res.ok) {
+            let text = await res.text();
             
-            if (res.ok) {
-                let text = await res.text();
-                
-                // চেক করবে রেসপন্সটি সঠিক JSON ফরম্যাটে আছে কি না
-                if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-                    let data = JSON.parse(text);
-                    if (data && data.data && data.data.list) {
-                        return data;
-                    }
-                } else {
-                    console.log(`⚠️ Proxy ${i+1} returned HTML (Blocked page), trying next...`);
+            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                let data = JSON.parse(text);
+                if (data && data.data && data.data.list) {
+                    return data;
                 }
+            } else {
+                console.log(`⚠️ Google Proxy received invalid content format.`);
             }
-        } catch(e) {
-            // প্রক্সি ফেইল করলে স্বয়ংক্রিয়ভাবে পরবর্তী প্রক্সি ট্রাই করবে
         }
+    } catch(e) {
+        console.log(`❌ Fetch Error via Google Proxy:`, e.message);
     }
     return null;
 }
@@ -259,7 +247,7 @@ async function fetchServerData(server) {
     try {
         const data = await safeFetch(APIS[server]);
         if (!data) {
-            console.log(`❌ [${server}] API-তে ডেটা পাওয়া যায়নি (All proxies blocked)`);
+            console.log(`❌ [${server}] API-তে ডেটা পাওয়া যায়নি (Proxy Connection Issue)`);
             return; 
         }
 
