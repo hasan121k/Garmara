@@ -33,13 +33,14 @@ const channelsRef = ref(db, 'channels');
 
 let channelsData = {};
 let channelActiveStates = {};
+let sentSignalsLog = {}; // ডুপ্লিকেট মেসেজ ট্র্যাকিংয়ের জন্য গ্লোবাল অবজেক্ট
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
     console.log(`🔄 Channels Synced! Total Channels in DB: ${Object.keys(channelsData).length}`);
 });
 
-// সচল ব্যাকআপ লটারি সার্ভার ডোমেন যুক্ত করা হয়েছে
+// সচল ব্যাকআপ লটারি সার্ভার ডোমেন
 const APIS = {
     '30S': 'https://draw.ar-lottery02.com/WinGo/WinGo_30S/GetHistoryIssuePage.json',
     '1M': 'https://draw.ar-lottery02.com/WinGo/WinGo_1M/GetHistoryIssuePage.json',
@@ -123,6 +124,15 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
         let c = channelsData[key];
         
         if (c.isActive && c.server === server && c.botToken && c.chatId) {
+            
+            // ডুপ্লিকেট মেসেজ প্রতিরোধক গার্ড
+            let sentinelKey = `${c.chatId}_${nextPeriodStr}`;
+            if (sentSignalsLog[sentinelKey]) {
+                console.log(`⚠️ Prevented duplicate send to ${c.name} for period ${nextPeriodStr}`);
+                continue; // এই চ্যানেলে অলরেডি পাঠানো হয়ে থাকলে লুপ স্কিপ করবে
+            }
+            sentSignalsLog[sentinelKey] = true;
+
             console.log(`📡 Processing channel [${c.name}] for server ${server}...`);
             channelTasks.push((async () => {
                 try {
@@ -218,7 +228,6 @@ async function safeFetch(url) {
     const timeUrl = url + '?t=' + Date.now();
     const encodedUrl = encodeURIComponent(timeUrl);
     
-    // আপনার জেনারেট করা গুগল স্ক্রিপ্ট প্রক্সি লিংক
     const myGoogleProxy = "https://script.google.com/macros/s/AKfycbyKdJNB9kSmVg9Ye70z93knOaBQhkRUxkiis_fT9E6HGhRhxtJKkU1kpbvGDeCc5IQq3g/exec?url=";
 
     try {
