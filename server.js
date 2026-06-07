@@ -36,7 +36,7 @@ let channelActiveStates = {};
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
-    console.log(`🔄 Channels Synced! Total Channels: ${Object.keys(channelsData).length}`);
+    console.log(`🔄 Channels Synced! Total Channels in DB: ${Object.keys(channelsData).length}`);
 });
 
 const APIS = {
@@ -57,13 +57,12 @@ function calculatePrediction(list) {
     return (last5[0] === "BIG") ? "SMALL" : "BIG";
 }
 
-// 🚨 Timezone & Format Fix
+// Timezone & Format Fix
 function isTimeAllowed(timesRaw) {
     if(!timesRaw) return true; 
     let timesArray = Array.isArray(timesRaw) ? timesRaw : Object.values(timesRaw);
     if(timesArray.length === 0) return true;
 
-    // বাংলাদেশ টাইম অনুযায়ী হিসাব করবে
     let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Dhaka"}));
     let currentMinutes = now.getHours() * 60 + now.getMinutes();
     
@@ -87,7 +86,7 @@ function isTimeAllowed(timesRaw) {
     return !hasValidBoxSet;
 }
 
-// 🚨 Telegram Error Logger
+// Telegram Message Sender
 async function tgMsg(token, chat, text) {
     if(!token || !chat || !text) return;
     try { 
@@ -96,8 +95,14 @@ async function tgMsg(token, chat, text) {
             body: JSON.stringify({ chat_id: chat, text: text, parse_mode: 'HTML' })
         }); 
         let json = await res.json();
-        if(!json.ok) console.log(`⚠️ Telegram Warning [${chat}]:`, json.description);
-    } catch(e) {}
+        if(!json.ok) {
+            console.log(`⚠️ Telegram Warning [${chat}]:`, json.description);
+        } else {
+            console.log(`📩 Message sent to Telegram [${chat}]`);
+        }
+    } catch(e) {
+        console.log(`❌ Telegram API Request Failed:`, e.message);
+    }
 }
 
 async function tgSticker(token, chat, stickerId) {
@@ -117,7 +122,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
         let c = channelsData[key];
         
         if (c.isActive && c.server === server && c.botToken && c.chatId) {
-            
+            console.log(`📡 Processing channel [${c.name}] for server ${server}...`);
             channelTasks.push((async () => {
                 try {
                     if(!channelActiveStates[key]) {
@@ -198,7 +203,7 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
                     internalState.lastSentPred = newPrediction;
                     
                 } catch(err) {
-                    console.log(`❌ Error processing channel ${c.name}:`, err.message);
+                    console.log(`❌ Error processing channel [${c.name}]:`, err.message);
                 }
             })());
         }
@@ -207,8 +212,8 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     await Promise.all(channelTasks);
 }
 
-// 🔥 Anti-Block Proxy System
-async function safeFetch(url) {
+// Anti-Block Proxy System
+async function safeFetch(url, serverName) {
     const timeUrl = url + '?t=' + Date.now();
     const proxies = [
         `https://api.allorigins.win/raw?url=${encodeURIComponent(timeUrl)}`,
@@ -216,12 +221,15 @@ async function safeFetch(url) {
         timeUrl
     ];
 
-    for (let proxyUrl of proxies) {
+    for (let i = 0; i < proxies.length; i++) {
+        let proxyUrl = proxies[i];
         try {
             let res = await fetch(proxyUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }});
             if (res.ok) {
                 let data = await res.json();
-                if (data && data.data && data.data.list) return data;
+                if (data && data.data && data.data.list) {
+                    return data;
+                }
             }
         } catch(e) {}
     }
@@ -230,8 +238,11 @@ async function safeFetch(url) {
 
 async function fetchServerData(server) {
     try {
-        const data = await safeFetch(APIS[server]);
-        if (!data) return; 
+        const data = await safeFetch(APIS[server], server);
+        if (!data) {
+            console.log(`❌ [${server}] API-তে ডেটা পাওয়া যায়নি (Proxy/IP Blocked)`);
+            return; 
+        }
 
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
@@ -241,6 +252,7 @@ async function fetchServerData(server) {
         if (!state.p) {
             state.p = actualPeriod;
             state.pred = calculatePrediction(data.data.list);
+            console.log(`📡 [${server}] Initialized. Start Period: ${actualPeriod}, Next Prediction: ${state.pred}`);
         } 
         else if (state.p !== actualPeriod) {
             let oldPred = state.pred; 
@@ -249,18 +261,21 @@ async function fetchServerData(server) {
             state.pred = newPred;     
             
             let nextPeriodStr = (BigInt(actualPeriod) + 1n).toString();
+            console.log(`⚡ [${server}] Period Changed! Old: ${actualPeriod} (${actualSize}). New Signal: ${newPred}`);
             
             processPeriodChange(server, actualPeriod, actualSize, newPred, nextPeriodStr);
         }
-    } catch (e) { }
+    } catch (e) {
+        console.log(`⚠️ [${server}] Fetch Error:`, e.message);
+    }
 }
 
 setInterval(() => {
     fetchServerData('30S'); fetchServerData('1M'); 
     fetchServerData('3M'); fetchServerData('5M');
-}, 4000);
+}, 5000);
 
-// 30 MIN WARNING CHECKER (BD Timezone)
+// 30 MIN WARNING CHECKER
 setInterval(() => {
     let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Dhaka"}));
     let currentMinutes = now.getHours() * 60 + now.getMinutes();
