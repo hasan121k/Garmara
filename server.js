@@ -33,7 +33,7 @@ const channelsRef = ref(db, 'channels');
 
 let channelsData = {};
 let channelActiveStates = {};
-let sentSignalsLog = {}; // ডুপ্লিকেট মেসেজ ট্র্যাকিংয়ের জন্য গ্লোবাল অবজেক্ট
+let sentSignalsLog = {}; // ডুপ্লিকেট মেমোরি লক
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
@@ -48,9 +48,12 @@ const APIS = {
     '5M': 'https://draw.ar-lottery02.com/WinGo/WinGo_5M/GetHistoryIssuePage.json'
 };
 
+// কনকারেন্সি লকিং সিস্টেম (isFetching)
 const serverStates = {
-    '30S': { p: null, pred: null }, '1M': { p: null, pred: null },
-    '3M': { p: null, pred: null }, '5M': { p: null, pred: null }
+    '30S': { p: null, pred: null, isFetching: false }, 
+    '1M': { p: null, pred: null, isFetching: false },
+    '3M': { p: null, pred: null, isFetching: false }, 
+    '5M': { p: null, pred: null, isFetching: false }
 };
 
 function calculatePrediction(list) {
@@ -125,13 +128,20 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
         
         if (c.isActive && c.server === server && c.botToken && c.chatId) {
             
-            // ডুপ্লিকেট মেসেজ প্রতিরোধক গার্ড
+            // ১. ফায়ারবেস ডেটাবেজ লক (Database Lock)
+            if (c.lastSentPeriod === nextPeriodStr) {
+                continue; // এই পিরিয়ডের মেসেজ অলরেডি পাঠানো হয়ে থাকলে স্কিপ করবে
+            }
+
+            // ২. মেমোরি লক (Memory Lock for same Chat ID)
             let sentinelKey = `${c.chatId}_${nextPeriodStr}`;
             if (sentSignalsLog[sentinelKey]) {
-                console.log(`⚠️ Prevented duplicate send to ${c.name} for period ${nextPeriodStr}`);
-                continue; // এই চ্যানেলে অলরেডি পাঠানো হয়ে থাকলে লুপ স্কিপ করবে
+                continue; 
             }
             sentSignalsLog[sentinelKey] = true;
+
+            // অবিলম্বে ফায়ারবেস ডেটাবেজ আপডেট করে লক করে দিন
+            update(ref(db, `channels/${key}`), { lastSentPeriod: nextPeriodStr });
 
             console.log(`📡 Processing channel [${c.name}] for server ${server}...`);
             channelTasks.push((async () => {
@@ -254,17 +264,23 @@ async function safeFetch(url) {
 }
 
 async function fetchServerData(server) {
+    let state = serverStates[server];
+    
+    // ৩. ৩ স্তরের কনকারেন্সি লক (Concurrency Lock)
+    if (state.isFetching) return; 
+    
+    state.isFetching = true;
     try {
         const data = await safeFetch(APIS[server]);
         if (!data) {
             console.log(`❌ [${server}] API-তে ডেটা পাওয়া যায়নি (Proxy Connection Issue)`);
+            state.isFetching = false;
             return; 
         }
 
         const latest = data.data.list[0];
         const actualPeriod = latest.issueNumber;
         const actualSize = parseInt(latest.number) >= 5 ? "BIG" : "SMALL";
-        let state = serverStates[server];
 
         if (!state.p) {
             state.p = actualPeriod;
@@ -282,7 +298,9 @@ async function fetchServerData(server) {
             
             processPeriodChange(server, actualPeriod, actualSize, newPred, nextPeriodStr);
         }
+        state.isFetching = false;
     } catch (e) {
+        state.isFetching = false;
         console.log(`⚠️ [${server}] Fetch Error:`, e.message);
     }
 }
