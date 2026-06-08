@@ -33,14 +33,13 @@ const channelsRef = ref(db, 'channels');
 
 let channelsData = {};
 let channelActiveStates = {};
-let sentSignalsLog = {}; // ডুপ্লিকেট মেমোরি লক
+let sentSignalsLog = {}; 
 
 onValue(channelsRef, (snapshot) => {
     channelsData = snapshot.val() || {};
     console.log(`🔄 Channels Synced! Total Channels in DB: ${Object.keys(channelsData).length}`);
 });
 
-// সচল ব্যাকআপ লটারি সার্ভার ডোমেন
 const APIS = {
     '30S': 'https://draw.ar-lottery02.com/WinGo/WinGo_30S/GetHistoryIssuePage.json',
     '1M': 'https://draw.ar-lottery02.com/WinGo/WinGo_1M/GetHistoryIssuePage.json',
@@ -48,7 +47,7 @@ const APIS = {
     '5M': 'https://draw.ar-lottery02.com/WinGo/WinGo_5M/GetHistoryIssuePage.json'
 };
 
-// কনকারেন্সি লকিং সিস্টেম (isFetching)
+// কনকারেন্সি লকিং সিস্টেম
 const serverStates = {
     '30S': { p: null, pred: null, isFetching: false }, 
     '1M': { p: null, pred: null, isFetching: false },
@@ -60,6 +59,17 @@ function calculatePrediction(list) {
     const last5 = list.slice(0, 5).map(x => parseInt(x.number) >= 5 ? "BIG" : "SMALL");
     if (last5[0] === last5[1] && last5[1] === last5[2]) return last5[0]; 
     return (last5[0] === "BIG") ? "SMALL" : "BIG";
+}
+
+// চেক করবে এই সার্ভারটি ডাটাবেজে কোনো সচল চ্যানেলের জন্য প্রয়োজন কি না
+function isServerNeeded(server) {
+    for (let key in channelsData) {
+        let c = channelsData[key];
+        if (c.isActive && c.server === server) {
+            return true; // সচল চ্যানেল পাওয়া গেছে
+        }
+    }
+    return false; // এই সার্ভারের কোনো সচল চ্যানেল নেই
 }
 
 // Timezone & Format Fix
@@ -128,19 +138,17 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
         
         if (c.isActive && c.server === server && c.botToken && c.chatId) {
             
-            // ১. ফায়ারবেস ডেটাবেজ লক (Database Lock)
+            // ফায়ারবেস ও মেমোরি ডুপ্লিকেট লক
             if (c.lastSentPeriod === nextPeriodStr) {
-                continue; // এই পিরিয়ডের মেসেজ অলরেডি পাঠানো হয়ে থাকলে স্কিপ করবে
+                continue; 
             }
 
-            // ২. মেমোরি লক (Memory Lock for same Chat ID)
             let sentinelKey = `${c.chatId}_${nextPeriodStr}`;
             if (sentSignalsLog[sentinelKey]) {
                 continue; 
             }
             sentSignalsLog[sentinelKey] = true;
 
-            // অবিলম্বে ফায়ারবেস ডেটাবেজ আপডেট করে লক করে দিন
             update(ref(db, `channels/${key}`), { lastSentPeriod: nextPeriodStr });
 
             console.log(`📡 Processing channel [${c.name}] for server ${server}...`);
@@ -233,40 +241,54 @@ async function processPeriodChange(server, oldPeriod, actualSize, newPrediction,
     await Promise.all(channelTasks);
 }
 
-// Highly Secure Google API Proxy Fetcher
+// আত্ম-নিরাময়কারী (Self-Healing) মাল্টি-প্রক্সি ইঞ্জিন
 async function safeFetch(url) {
     const timeUrl = url + '?t=' + Date.now();
     const encodedUrl = encodeURIComponent(timeUrl);
     
-    const myGoogleProxy = "https://script.google.com/macros/s/AKfycbyKdJNB9kSmVg9Ye70z93knOaBQhkRUxkiis_fT9E6HGhRhxtJKkU1kpbvGDeCc5IQq3g/exec?url=";
+    // গুগল লিমিট শেষ হলে ২, ৩ ও ৪ নম্বর প্রক্সি ব্যাকআপ হিসেবে স্বয়ংক্রিয়ভাবে কাজ করবে
+    const proxies = [
+        `https://script.google.com/macros/s/AKfycbyKdJNB9kSmVg9Ye70z93knOaBQhkRUxkiis_fT9E6HGhRhxtJKkU1kpbvGDeCc5IQq3g/exec?url=${encodedUrl}`,
+        `https://corsproxy.io/?url=${encodedUrl}`,
+        `https://autumn-sun-c0ee.habiburrahman009000.workers.dev/?url=${encodedUrl}`,
+        `https://api.allorigins.win/raw?url=${encodedUrl}`
+    ];
 
-    try {
-        let res = await fetch(myGoogleProxy + encodedUrl, { 
-            signal: AbortSignal.timeout(12000) 
-        });
-        
-        if (res.ok) {
-            let text = await res.text();
+    for (let i = 0; i < proxies.length; i++) {
+        let proxyUrl = proxies[i];
+        try {
+            let res = await fetch(proxyUrl, { 
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                signal: AbortSignal.timeout(10000) // ১০ সেকেন্ড টাইমআউট
+            });
             
-            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-                let data = JSON.parse(text);
-                if (data && data.data && data.data.list) {
-                    return data;
+            if (res.ok) {
+                let text = await res.text();
+                
+                if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                    let data = JSON.parse(text);
+                    if (data && data.data && data.data.list) {
+                        if (i > 0) {
+                            console.log(`⚠️ Primary Google Proxy (Limit exceeded/Failed). Backup Proxy ${i} Succeeded!`);
+                        }
+                        return data;
+                    }
                 }
-            } else {
-                console.log(`⚠️ Google Proxy received invalid content format.`);
             }
+        } catch(e) {
+            // পরবর্তী ব্যাকআপ প্রক্সি ট্রাই করবে
         }
-    } catch(e) {
-        console.log(`❌ Fetch Error via Google Proxy:`, e.message);
     }
     return null;
 }
 
 async function fetchServerData(server) {
+    // যদি এই সার্ভারের কোনো একটিভ চ্যানেল ডাটাবেজে না থাকে, তবে রিকোয়েস্ট স্কিপ করে কোটা বাঁচাবে
+    if (!isServerNeeded(server)) {
+        return; 
+    }
+
     let state = serverStates[server];
-    
-    // ৩. ৩ স্তরের কনকারেন্সি লক (Concurrency Lock)
     if (state.isFetching) return; 
     
     state.isFetching = true;
@@ -305,10 +327,11 @@ async function fetchServerData(server) {
     }
 }
 
-setInterval(() => {
-    fetchServerData('30S'); fetchServerData('1M'); 
-    fetchServerData('3M'); fetchServerData('5M');
-}, 5000);
+// স্মার্ট ডিস্ট্রিবিউটেড টাইম চেকার (কোটা সেভিং ইন্টারভাল)
+setInterval(() => fetchServerData('30S'), 6000);   // 30S চেক হবে প্রতি ৬ সেকেন্ডে
+setInterval(() => fetchServerData('1M'), 12000);   // 1M চেক হবে প্রতি ১২ সেকেন্ডে
+setInterval(() => fetchServerData('3M'), 30000);   // 3M চেক হবে প্রতি ৩০ সেকেন্ডে
+setInterval(() => fetchServerData('5M'), 45000);   // 5M চেক হবে প্রতি ৪৫ সেকেন্ডে
 
 // 30 MIN WARNING CHECKER
 setInterval(() => {
